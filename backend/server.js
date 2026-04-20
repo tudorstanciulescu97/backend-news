@@ -9,13 +9,29 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
+import User from "./models/User.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || "schimba-ma-in-productie-chiar-te-rog";
+const MONGO_URI = process.env.MONGO_URI;
 const TOKEN_TTL = "2h";
+
+// ─── Conectare MongoDB ───────────────────────────────────────────────────
+if (!MONGO_URI) {
+  console.error("❌ MONGO_URI lipsește din env. Pune-l în .env (local) sau Render env vars.");
+  process.exit(1);
+}
+mongoose
+  .connect(MONGO_URI, { serverSelectionTimeoutMS: 8000 })
+  .then(() => console.log("✅ Conectat la MongoDB"))
+  .catch((err) => {
+    console.error("❌ Eroare MongoDB:", err.message);
+    process.exit(1);
+  });
 
 // CORS — în dev permitem Vite (5173), în prod pui domeniul tău real în .env (FRONTEND_ORIGIN).
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
@@ -49,16 +65,10 @@ const loginLimiter = rateLimit({
   message: { error: "Prea multe încercări de login. Încearcă peste 15 minute." },
 });
 
-// ─── "Baza de date" hardcodată pentru MVP ────────────────────────────────
-// Parola e stocată ca hash bcrypt.
-const USERS = [
-  {
-    username: "nico",
-    // bcrypt hash pentru "sticlimarci" (cost 10)
-    passwordHash: "$2a$10$IvVednDQbcZj.s49Qdw/aexYfCBOpmCCGcR8SZpTwm7OzWrkkgWxK",
-    displayName: "Nico",
-  },
-];
+// Escape pentru regex (protecție la injecție pe username)
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 // Helper — generează JWT
 function issueToken(user) {
@@ -96,10 +106,10 @@ app.post("/api/login", loginLimiter, async (req, res) => {
     return res.status(400).json({ error: "Trimite username și password." });
   }
 
-  // Găsește user-ul (case-insensitive pe username)
-  const user = USERS.find(
-    (u) => u.username.toLowerCase() === username.toLowerCase()
-  );
+  // Găsește user-ul în Mongo (case-insensitive pe username)
+  const user = await User.findOne({
+    username: { $regex: `^${escapeRegex(username)}$`, $options: "i" },
+  });
 
   // Mesaj generic indiferent unde dă greș, ca să nu ajutăm atacatori.
   const genericFail = () =>
