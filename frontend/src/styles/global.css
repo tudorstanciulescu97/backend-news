@@ -1,0 +1,119 @@
+/* ───────────────────────────────────────────────────────────────────────
+   Grădina lui Nini — design tokens
+   Estetică: carte ilustrată watercolor, călduroasă, naturală.
+   Culori principale: crem/sepia pentru hârtie, verde-salvie pentru
+   accente vii, portocaliu piersică pentru interactivitate.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Paper & surfaces */
+  --paper: #fbf4e2;           /* hârtie veche caldă */
+  --paper-edge: #e8dcc0;      /* marginea paginii */
+  --paper-shadow: #b89968;    /* umbra paginii */
+  --ink: #3d2e1f;             /* culoarea textului, ca cerneală sepia */
+  --ink-soft: #6b5640;
+
+  /* Accents */
+  --leaf: #6a8759;            /* verde frunze */
+  --leaf-deep: #4a6b44;
+  --bloom: #e89451;           /* portocaliu/piersică */
+  --bloom-deep: #c66f33;
+  --sky: #c9dcef;
+
+  /* Background field */
+  --field-1: #f4e9d0;
+  --field-2: #e8d8b5;
+
+  /* Typography */
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-body: "Nunito", system-ui, sans-serif;
+
+  /* Motion */
+  --ease-soft: cubic-bezier(0.65, 0.05, 0.36, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+html {
+  /* Rezervă spațiul barei de scroll ca să nu mute layout-ul când apare/dispare
+     în timpul flip-ului unei pagini. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--field-1);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+/* Fundal "grădină" — folosit atât la login cât și la carte.
+   Gradient soft + cerc de soare + dungi organice. */
+.garden-backdrop {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 60% at 80% 10%, rgba(255, 240, 180, 0.55), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 15% 85%, rgba(150, 180, 130, 0.35), transparent 65%),
+    linear-gradient(180deg, #eaf4f1 0%, #f4ecd2 55%, #d9cf9c 100%);
+  z-index: -2;
+}
+
+.garden-backdrop::before {
+  /* textură de zgomot subtil pentru feeling de hârtie */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0.4 0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0.15 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* Soare discret sus-dreapta */
+.garden-backdrop::after {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 220, 140, 0.85), rgba(255, 220, 140, 0) 70%);
+  animation: sunPulse 8s var(--ease-soft) infinite;
+  pointer-events: none;
+}
+
+@keyframes sunPulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.08); opacity: 1; }
+}
+
+/* Utility — text selectabil dar stilizat */
+::selection {
+  background: var(--bloom);
+  color: white;
+}

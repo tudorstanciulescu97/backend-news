@@ -1,0 +1,382 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   BookViewer — estetică de carte ilustrată
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ───── page-flip base styles ─────
+   Librăria `page-flip` adaugă clasele de mai jos pe elementele din DOM,
+   dar NU importă propriul CSS. Fără aceste reguli, paginile își pierd
+   poziționarea absolută în timpul animației (→ dispar / se suprapun) și
+   nu au perspective 3D (→ par transparente). Replicat din
+   node_modules/page-flip/src/Style/stPageFlip.css. */
+.stf__parent {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  transform: translateZ(0);
+  -ms-touch-action: pan-y;
+  touch-action: pan-y;
+}
+.stf__wrapper {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+.stf__parent canvas {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+}
+.stf__block {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  perspective: 2000px;
+}
+.stf__item {
+  display: none;
+  position: absolute;
+  transform-style: preserve-3d;
+}
+.stf__outerShadow,
+.stf__innerShadow,
+.stf__hardShadow,
+.stf__hardInnerShadow {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.viewer-shell {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* ───── Topbar ───── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  background: rgba(255, 250, 230, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(184, 153, 104, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1.5px solid var(--paper-edge);
+  border-radius: 8px;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+.btn-back:hover {
+  background: #fff;
+  border-color: var(--leaf);
+}
+.btn-back:active { transform: scale(0.97); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.user-chip {
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 6px 12px;
+  background: rgba(106, 135, 89, 0.1);
+  border-radius: 999px;
+  border: 1px solid rgba(106, 135, 89, 0.25);
+}
+
+.btn-logout {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1.5px solid var(--paper-edge);
+  border-radius: 8px;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-logout:hover {
+  background: #fff;
+  border-color: var(--leaf);
+}
+.btn-logout:active { transform: scale(0.97); }
+
+/* ───── Book stage ───── */
+.book-stage {
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  position: relative;
+}
+
+.nini-book {
+  /* Umbră sub carte, ca și cum stă pe un birou */
+  filter: drop-shadow(0 30px 40px rgba(60, 40, 20, 0.35))
+          drop-shadow(0 8px 12px rgba(60, 40, 20, 0.2));
+}
+
+/* ───── Pagini (bază) ───── */
+.book-page {
+  background-color: var(--paper);
+  overflow: hidden;
+  position: relative;
+  /* Ascunde spatele paginii la rotație 3D — altfel coperta "pare transparentă"
+     în timpul flip-ului (vezi partea din spate mirrored). */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  /* textură de hârtie */
+  background-image:
+    radial-gradient(ellipse at top left, rgba(255, 245, 210, 0.6), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(200, 170, 110, 0.15), transparent 70%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='2'/><feColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.45 0 0 0 0 0.3 0 0 0 0.1 0'/></filter><rect width='100%' height='100%' filter='url(%23p)'/></svg>");
+  background-size: auto, auto, 140px 140px;
+}
+
+.book-page__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-number {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+
+/* Vignette subtile — margini întunecate */
+.page-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 60px rgba(120, 80, 40, 0.15),
+    inset 0 0 8px rgba(120, 80, 40, 0.08);
+}
+
+/* ───── Copertă ───── */
+.book-cover {
+  position: relative;
+  background: #5d4a2e;
+}
+
+.book-cover--front .cover-art {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.95) brightness(0.92);
+}
+
+.book-cover--front .cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(245, 230, 200, 0.85) 0%,
+    rgba(245, 230, 200, 0.4) 40%,
+    rgba(100, 70, 30, 0.1) 100%
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 40px 24px 0;
+  text-align: center;
+}
+
+.cover-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(24px, 4.5vw, 34px);
+  color: #3d2e1f;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 0 rgba(255, 250, 230, 0.7);
+}
+
+.cover-ornament {
+  margin: 14px 0 12px;
+  color: var(--bloom);
+  letter-spacing: 0.3em;
+  font-size: 11px;
+}
+
+.cover-subtitle {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* Colțuri ornamentale pe copertă */
+.cover-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(255, 250, 230, 0.6);
+  pointer-events: none;
+}
+.cover-corner--tl { top: 14px; left: 14px;  border-right: none; border-bottom: none; }
+.cover-corner--tr { top: 14px; right: 14px; border-left: none;  border-bottom: none; }
+.cover-corner--bl { bottom: 14px; left: 14px;  border-right: none; border-top: none; }
+.cover-corner--br { bottom: 14px; right: 14px; border-left: none;  border-top: none; }
+
+/* Back cover */
+.book-cover--back {
+  background: linear-gradient(135deg, #6b5640 0%, #4a3a28 100%);
+}
+.back-cover-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  text-align: center;
+  color: #f4e9d0;
+}
+.back-ornament {
+  font-size: 42px;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+}
+.back-text {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 15px;
+  line-height: 1.6;
+  opacity: 0.9;
+}
+
+/* ───── Story page ───── */
+/* Imaginea acoperă întreaga pagină (text-ul e deja încorporat în imagine). */
+.story-illustration-full {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.story-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px 22px;
+}
+
+.story-text--center {
+  justify-content: center;
+  text-align: center;
+  align-items: center;
+}
+
+.story-text--end {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.story-text--end .story-line:first-child {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--bloom-deep);
+  margin-bottom: 10px;
+}
+
+.story-line {
+  font-family: var(--font-display);
+  font-size: clamp(14px, 1.8vw, 17px);
+  line-height: 1.4;
+  color: var(--ink);
+  opacity: 0;
+  animation: lineAppear 0.6s var(--ease-soft) both;
+}
+
+@keyframes lineAppear {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ───── Blank page ───── */
+.blank-page .book-page__inner {
+  align-items: center;
+  justify-content: center;
+}
+.blank-ornament {
+  font-size: 28px;
+  color: var(--paper-shadow);
+  opacity: 0.4;
+}
+
+/* ───── Loading & error ───── */
+.book-loading,
+.book-error {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-family: var(--font-display);
+  color: var(--ink-soft);
+  font-size: 16px;
+  font-style: italic;
+}
+
+.loading-flower {
+  font-size: 56px;
+  animation: loadSpin 2.5s linear infinite;
+}
+@keyframes loadSpin {
+  from { transform: rotate(0); }
+  to   { transform: rotate(360deg); }
+}
+
+.book-error button { margin-top: 12px; }
+
+/* ───── Responsive ───── */
+@media (max-width: 540px) {
+  .topbar { padding: 10px 14px; }
+  .topbar-brand { font-size: 15px; }
+  .user-chip { display: none; }
+}
